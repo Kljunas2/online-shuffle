@@ -22,9 +22,6 @@ type games struct {
 var currGames games
 
 func main() {
-	logFile, _ := os.Create("log")
-	log.New(logFile, "", 1)
-
 	currGames.games = make(map[string][]string)
 	tmpl = template.Must(template.ParseGlob("templates/*.html"))
 	http.HandleFunc("/", createGame())
