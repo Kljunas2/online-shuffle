@@ -1,0 +1,14 @@
+{{ define "addItem" }}
+<!DOCTYPE HTML>
+<head>
+</head>
+<body>
+	<h1>Igra #{{.}}</h1>
+	<h2>Dodaj ime</h2>
+	<form method="post">
+		<input name="item"></input>
+		<br/>
+		<input type="submit" value="dodaj"/>
+	</form>
+</body>
+{{ end }}

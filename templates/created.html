@@ -1,0 +1,16 @@
+{{ define "gameCreated" }}
+<!DOCTYPE HTML>
+<head>
+	<script>
+		function copy() {
+			var copyText = document.getElementById("povezava");
+			copyText.select();
+
+			document.execCommand("copy");
+		}
+	</script>
+</head>
+<body>
+	<a id="povezava" href="{{ . }}">povezava do igre</a><button onclick="copy()">&#x1f4cb</button>
+</body>
+{{ end }}
