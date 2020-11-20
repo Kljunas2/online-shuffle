@@ -1,36 +1,41 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"math/rand"
 	"net/http"
-	"strconv"
-	"sync"
+	"time"
 )
 
-var tmpl *template.Template
+var port string
 
-type games struct {
-	games    map[string][]string
-	gamelens map[string]int
-	sync.RWMutex
+func init() {
+	flag.StringVar(&port, "port", ":8000", "port to listen")
+	flag.Parse()
 }
+
+var tmpl *template.Template
 
 var currGames games
 
 func main() {
-	currGames.games = make(map[string][]string)
+	currGames.games = make(map[string]*game)
 	tmpl = template.Must(template.ParseGlob("templates/*.html"))
-	http.HandleFunc("/", createGame())
+	http.HandleFunc("/", mainPage())
 	http.HandleFunc("/add", addItem())
 	http.HandleFunc("/play", play())
 	http.HandleFunc("/nameRequest", nameRequest())
-	log.Fatal(http.ListenAndServe(":8000", nil))
+
+	staticServer := http.FileServer(http.Dir("."))
+	http.Handle("/static/", staticServer)
+
+	log.Fatal(http.ListenAndServe(port, nil))
 }
 
-func createGame() func(w http.ResponseWriter, req *http.Request) {
+func mainPage() func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var gameId string
 		switch req.Method {
@@ -38,19 +43,26 @@ func createGame() func(w http.ResponseWriter, req *http.Request) {
 			tmpl.ExecuteTemplate(w, "newGame", gameId)
 			log.Printf("%s hoče igrati\n", req.RemoteAddr)
 		case http.MethodPost:
+			fmt.Println(req.FormValue("gameid"))
+			fmt.Println(req.FormValue("create"))
+			fmt.Println(req.FormValue("play"))
 			log.Printf("%s ustvarja igro\n", req.RemoteAddr)
 			currGames.Lock()
 			var ok bool
-			for gameId = strconv.Itoa(rand.Int()); ok; _, ok = currGames.games[gameId] {
-				gameId = strconv.Itoa(rand.Int())
+			for gameId = randhex(); ok; _, ok = currGames.games[gameId] {
+				gameId = randhex()
 				fmt.Println(gameId, ok)
 			}
-			currGames.games[gameId] = make([]string, 0, 10)
+			currGames.games[gameId] = createGame(gameId)
 			currGames.Unlock()
 			log.Printf("ustvaril igro %s\n", gameId)
 			tmpl.ExecuteTemplate(w, "gameCreated", "/add?gameid="+gameId)
 		}
 	}
+}
+
+func randhex() string {
+	return fmt.Sprintf("%05x", rand.Intn(0x100000))
 }
 
 func addItem() func(w http.ResponseWriter, req *http.Request) {
@@ -59,19 +71,12 @@ func addItem() func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
 		case http.MethodGet:
 			gameId = req.FormValue("gameid")
-			log.Printf("gameId %s\n", gameId)
 			tmpl.ExecuteTemplate(w, "addItem", gameId)
-
 		case http.MethodPost:
 			gameId = req.FormValue("gameid")
 			item := req.FormValue("item")
 			log.Printf("%s v igri %s je dodal %s\n", req.Host, gameId, item)
-			currGames.Lock()
-			currGames.games[gameId] = append(currGames.games[gameId], item)
-			a := currGames.games[gameId]
-			rand.Shuffle(len(a), func(i, j int) { a[i], a[j] = a[j], a[i] })
-			currGames.Unlock()
-			log.Println(currGames.games[gameId])
+			currGames.games[gameId].addItem(item)
 			http.Redirect(w, req, "/play?gameid="+gameId, 303)
 		}
 	}
@@ -97,11 +102,17 @@ func nameRequest() func(w http.ResponseWriter, req *http.Request) {
 }
 
 func (g *games) pop(gameId string) string {
-	if len(g.games[gameId]) <= 0 {
+	if len(g.games[gameId].list) <= 0 {
 		return "zmanjkalo imen"
 	}
-	str := g.games[gameId][0]
+	str := g.games[gameId].list[0]
 	log.Print(g.games[gameId])
-	g.games[gameId] = g.games[gameId][1:]
+	g.games[gameId].list = g.games[gameId].list[1:]
 	return str
+}
+
+func loginCookie(username string) http.Cookie {
+	cookieValue := username + ":" /*+ codify.SHA(username+strconv.Itoa(rand.Intn(10000000)))*/
+	expire := time.Now().AddDate(0, 0, 10)
+	return http.Cookie{Name: "SessionID", Value: cookieValue, Expires: expire}
 }

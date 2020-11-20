@@ -1,11 +1,26 @@
 {{ define "newGame" }}
 <!DOCTYPE HTML>
 <head>
+	<title>Nova igra</title>
+	<link rel="stylesheet" href="static/stylesheet.css"/>
 </head>
 <body>
-	<h1>Nova igra</h1>
-	<form method="post">
-		<input type="submit" value="Začni novo igro">
-	</form>
+	<table>
+		<tr>
+			<td>
+				<form method="post">
+					<input type="submit" value="Začni novo igro" name="create">
+				</form>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<form method="get" action="add" target="_self">
+					<input placeholder="ID IGRE" name="gameid">
+					<input type="submit" value="Pridruži se" name="join">
+				</form>
+			</td>
+		</tk>
+	</table>
 </body>
 {{ end }}
